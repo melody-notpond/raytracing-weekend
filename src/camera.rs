@@ -1,0 +1,113 @@
+use std::io::Write;
+
+use rand::distr::{Distribution, Uniform};
+
+use crate::color::Color;
+use crate::hittable::Hittable;
+use crate::ray::Ray;
+use crate::vec3::*;
+
+pub struct Camera {
+    pub image_width: i32,
+    pub image_height: i32,
+    pub center: Vec3,
+    pub max_depth: i32,
+    pub samples_per_pixel: i32,
+    pixel_sample_scale: f32,
+    uniform: Uniform<f32>,
+    aspect_ratio: f32,
+    pixel00_loc: Point3,
+    pixel_delta_u: Vec3,
+    pixel_delta_v: Vec3,
+}
+
+impl Camera {
+    pub fn new(image_width: i32, image_height: i32, center: Point3) -> Self {
+        Camera {
+            image_width,
+            image_height,
+            center,
+            max_depth: 10,
+            samples_per_pixel: 100,
+            pixel_sample_scale: 0.,
+            uniform: Uniform::new(0., 1.).unwrap(),
+            aspect_ratio: 0.,
+            pixel00_loc: Point3::new(0., 0., 0.),
+            pixel_delta_u: Vec3::new(0., 0., 0.),
+            pixel_delta_v: Vec3::new(0., 0., 0.),
+        }
+    }
+
+    pub fn render(&mut self, f: &mut impl Write, world: &impl Hittable) ->
+        std::io::Result<()> {
+        self.init();
+
+        writeln!(f, "P3\n{} {}\n255\n", self.image_width,
+            self.image_height)?;
+        for j in 0..self.image_height {
+            print!("\rscanlines remaining: {:3}", self.image_height - j);
+            for i in 0..self.image_width {
+                let mut color = Color::new(0., 0., 0.);
+                for _ in 0..self.samples_per_pixel {
+                    let ray = self.get_ray(i, j);
+                    color += self.ray_color(&ray, world, self.max_depth);
+                }
+                color *= self.pixel_sample_scale;
+                color.write_color(f)?;
+            }
+        }
+
+        println!("\rdone                       ");
+        Ok(())
+    }
+
+    fn init(&mut self) {
+        self.aspect_ratio = self.image_width as f32 / self.image_height as f32;
+        let focal_length = 1.;
+        self.center = Vec3::new(0., 0., 0.);
+        self.pixel_sample_scale = 1. / self.samples_per_pixel as f32;
+
+        // viewport
+        let viewport_height = 2.;
+        let viewport_width = viewport_height * self.aspect_ratio;
+        let viewport_u = Vec3::new(viewport_width as f32, 0., 0.);
+        let viewport_v = Vec3::new(0., -viewport_height as f32, 0.);
+
+        // pixel location in world
+        self.pixel_delta_u = viewport_u / self.image_width;
+        self.pixel_delta_v = viewport_v / self.image_height;
+        let viewport_upper_left = self.center - Vec3::new(0., 0., focal_length)
+            - viewport_u / 2 - viewport_v / 2;
+        self.pixel00_loc = viewport_upper_left + (self.pixel_delta_u +
+            self.pixel_delta_v) / 2;
+    }
+
+    fn ray_color(&self, ray: &Ray, world: &impl Hittable, depth: i32) -> Color {
+        if depth <= 0 {
+            return Color::new(0., 0., 0.)
+        }
+
+        let Some(hit) = world.hit(ray, 0.01, f32::INFINITY)
+        else {
+            let t = (ray.dir.y + 1.) / 2.;
+            return (1. - t) * Color::new(1., 1., 1.) +
+                t * Color::new(0.5, 0.7, 1.0)
+        };
+
+        let dir = Vec3::random_unit(&self.uniform) + hit.normal;
+        0.5 * self.ray_color(&Ray::new(hit.point, dir), world, depth - 1)
+    }
+
+    fn get_ray(&self, i: i32, j: i32) -> Ray {
+        let offset = self.sample_square();
+        let pixel_sample = self.pixel00_loc
+            + (i as f32 + offset.x) * self.pixel_delta_u
+            + (j as f32 + offset.y) * self.pixel_delta_v;
+        Ray::new(self.center, pixel_sample - self.center)
+    }
+
+    fn sample_square(&self) -> Vec3 {
+        Vec3::new(self.uniform.sample(&mut rand::rng()) - 0.5,
+            self.uniform.sample(&mut rand::rng()) - 0.5, 0.)
+    }
+}
