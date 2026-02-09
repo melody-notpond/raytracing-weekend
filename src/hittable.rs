@@ -1,3 +1,6 @@
+use std::rc::Rc;
+
+use crate::material::Material;
 use crate::ray::Ray;
 use crate::vec3::{Point3, Vec3};
 
@@ -6,10 +9,12 @@ pub struct Hit {
     pub normal: Vec3,
     pub t: f32,
     pub front_face: bool,
+    pub material: Rc<dyn Material>,
 }
 
 impl Hit {
-    pub fn new(ray: &Ray, t: f32, normal: Vec3) -> Self {
+    pub fn new(ray: &Ray, t: f32, normal: Vec3, material: Rc<dyn Material>)
+        -> Self {
         let front_face = ray.dir.dot(normal) < 0.;
         let normal = if front_face { normal } else { -normal };
         Self {
@@ -17,6 +22,7 @@ impl Hit {
             normal,
             t,
             front_face,
+            material,
         }
     }
 }
@@ -27,12 +33,14 @@ pub trait Hittable {
 
 pub struct Sphere {
     pub center: Point3,
-    pub radius: f32
+    pub radius: f32,
+    pub material: Rc<dyn Material>,
 }
 
 impl Sphere {
-    pub fn new(center: Point3, radius: f32) -> Sphere {
-        Sphere { center, radius }
+    pub fn new(center: Point3, radius: f32, material: Rc<dyn Material>)
+        -> Sphere {
+        Sphere { center, radius, material }
     }
 }
 
@@ -57,7 +65,8 @@ impl Hittable for Sphere {
             }
         }
 
-        Some(Hit::new(ray, root, (ray.at(root) - self.center) / self.radius))
+        Some(Hit::new(ray, root, (ray.at(root) - self.center) / self.radius,
+            self.material.clone()))
     }
 }
 

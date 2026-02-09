@@ -1,7 +1,5 @@
 use std::io::Write;
 
-use rand::distr::{Distribution, Uniform};
-
 use crate::color::Color;
 use crate::hittable::Hittable;
 use crate::ray::Ray;
@@ -14,7 +12,6 @@ pub struct Camera {
     pub max_depth: i32,
     pub samples_per_pixel: i32,
     pixel_sample_scale: f32,
-    uniform: Uniform<f32>,
     aspect_ratio: f32,
     pixel00_loc: Point3,
     pixel_delta_u: Vec3,
@@ -30,7 +27,6 @@ impl Camera {
             max_depth: 10,
             samples_per_pixel: 100,
             pixel_sample_scale: 0.,
-            uniform: Uniform::new(0., 1.).unwrap(),
             aspect_ratio: 0.,
             pixel00_loc: Point3::new(0., 0., 0.),
             pixel_delta_u: Vec3::new(0., 0., 0.),
@@ -94,20 +90,20 @@ impl Camera {
                 t * Color::new(0.5, 0.7, 1.0)
         };
 
-        let dir = Vec3::random_unit(&self.uniform) + hit.normal;
-        0.5 * self.ray_color(&Ray::new(hit.point, dir), world, depth - 1)
+        let Some(scatter) = hit.material.scatter(ray, &hit)
+        else {
+            return Color::new(0., 0., 0.);
+        };
+
+        scatter.attenuation * self.ray_color(&scatter.scattered, world,
+            depth - 1)
     }
 
     fn get_ray(&self, i: i32, j: i32) -> Ray {
-        let offset = self.sample_square();
+        let offset = Vec3::sample_square();
         let pixel_sample = self.pixel00_loc
             + (i as f32 + offset.x) * self.pixel_delta_u
             + (j as f32 + offset.y) * self.pixel_delta_v;
         Ray::new(self.center, pixel_sample - self.center)
-    }
-
-    fn sample_square(&self) -> Vec3 {
-        Vec3::new(self.uniform.sample(&mut rand::rng()) - 0.5,
-            self.uniform.sample(&mut rand::rng()) - 0.5, 0.)
     }
 }

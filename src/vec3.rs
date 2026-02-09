@@ -1,6 +1,6 @@
 use std::ops::*;
 
-use rand::distr::{Distribution, Uniform};
+use rand::distr::Distribution;
 
 #[derive(Copy, Clone)]
 pub struct Vec3 {
@@ -40,7 +40,19 @@ impl Vec3 {
         self / self.length()
     }
 
-    pub fn random(uniform: &Uniform<f32>) -> Vec3 {
+    pub fn near_zero(self) -> bool {
+        const EPSILON: f32 = 1e-8;
+        self.x.abs() < EPSILON && self.y.abs() < EPSILON &&
+            self.z.abs() < EPSILON
+    }
+
+    pub fn reflect(self, normal: Vec3) -> Vec3 {
+        self - 2. * normal.dot(self) * normal
+    }
+
+    pub fn random() -> Vec3 {
+        let mut guard = crate::UNIFORM.lock().unwrap();
+        let uniform = guard.get_mut().unwrap();
         Vec3 {
             x: uniform.sample(&mut rand::rng()),
             y: uniform.sample(&mut rand::rng()),
@@ -48,7 +60,9 @@ impl Vec3 {
         }
     }
 
-    pub fn random_range(uniform: &Uniform<f32>, min: f32, max: f32) -> Vec3 {
+    pub fn random_range(min: f32, max: f32) -> Vec3 {
+        let mut guard = crate::UNIFORM.lock().unwrap();
+        let uniform = guard.get_mut().unwrap();
         Vec3 {
             x: uniform.sample(&mut rand::rng()) * (max - min) + min,
             y: uniform.sample(&mut rand::rng()) * (max - min) + min,
@@ -56,9 +70,15 @@ impl Vec3 {
         }
     }
 
-    pub fn random_unit(uniform: &Uniform<f32>) -> Vec3 {
+    pub fn random_unit() -> Vec3 {
+        let mut guard = crate::UNIFORM.lock().unwrap();
+        let uniform = guard.get_mut().unwrap();
         loop {
-            let p = Self::random_range(uniform, -1., 1.);
+            let p = Vec3 {
+                x: uniform.sample(&mut rand::rng()) * 2. - 1.,
+                y: uniform.sample(&mut rand::rng()) * 2. - 1.,
+                z: uniform.sample(&mut rand::rng()) * 2. - 1.,
+            };
             let len_sq = p.length_sq();
             if len_sq.is_finite() && len_sq <= 1. {
                 return p / len_sq.sqrt();
@@ -66,12 +86,19 @@ impl Vec3 {
         }
     }
 
-    pub fn random_hemisphere(uniform: &Uniform<f32>, normal: Vec3) -> Vec3 {
-        let unit = Self::random_unit(uniform);
+    pub fn random_hemisphere(normal: Vec3) -> Vec3 {
+        let unit = Self::random_unit();
         if unit.dot(normal) >= 0. {
             return unit;
         }
         -unit
+    }
+
+    pub fn sample_square() -> Vec3 {
+        let mut guard = crate::UNIFORM.lock().unwrap();
+        let uniform = guard.get_mut().unwrap();
+        Vec3::new(uniform.sample(&mut rand::rng()) - 0.5,
+            uniform.sample(&mut rand::rng()) - 0.5, 0.)
     }
 }
 
@@ -95,6 +122,18 @@ impl Add<Vec3> for Vec3 {
             x: self.x + rhs.x,
             y: self.y + rhs.y,
             z: self.z + rhs.z,
+        }
+    }
+}
+
+impl Mul<Vec3> for Vec3 {
+    type Output = Vec3;
+
+    fn mul(self, rhs: Vec3) -> Self::Output {
+        Vec3 {
+            x: self.x * rhs.x,
+            y: self.y * rhs.y,
+            z: self.z * rhs.z,
         }
     }
 }
