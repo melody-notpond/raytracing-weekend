@@ -25,7 +25,7 @@ impl Camera {
             image_height,
             center,
             max_depth: 10,
-            samples_per_pixel: 100,
+            samples_per_pixel: 10,
             pixel_sample_scale: 0.,
             aspect_ratio: 0.,
             pixel00_loc: Point3::new(0., 0., 0.),

@@ -58,3 +58,44 @@ impl Material for Metal {
         }
     }
 }
+
+pub struct Dielectric {
+    pub refraction_index: f32,
+}
+
+impl Dielectric {
+    pub fn new(refraction_index: f32) -> Self {
+        Self { refraction_index }
+    }
+}
+
+impl Material for Dielectric {
+    fn scatter(&self, ray: &Ray, hit: &Hit) -> Option<Scatter> {
+        let index = if hit.front_face {
+            1. / self.refraction_index
+        } else {
+            self.refraction_index
+        };
+
+        let dir = ray.dir.normalize();
+        let cos_theta = dir.dot(-hit.normal).min(1.);
+        let sin_theta = (1. - cos_theta * cos_theta).sqrt();
+
+        let cannot_reflect = index * sin_theta > 1.;
+
+        // schlicks approximation for reflectance
+        let r0 = ((1. - index) / (1. + index)).powi(2);
+        let reflectance = r0 + (1. - r0) * (1. - cos_theta).powi(5);
+
+        let scattered = if cannot_reflect || reflectance > crate::random_f32() {
+            dir.reflect(hit.normal)
+        } else {
+            dir.refract(hit.normal, index)
+        };
+
+        Some(Scatter {
+            scattered: Ray::new(hit.point, scattered),
+            attenuation: Color::new(1., 1., 1.),
+        })
+    }
+}

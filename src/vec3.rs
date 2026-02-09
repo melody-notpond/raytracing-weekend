@@ -50,6 +50,13 @@ impl Vec3 {
         self - 2. * normal.dot(self) * normal
     }
 
+    pub fn refract(self, normal: Vec3, index_ratio: f32) -> Vec3 {
+        let cos_theta = self.dot(-normal).min(1.);
+        let perp = index_ratio * (self + cos_theta * normal);
+        let para = -(1. - perp.length_sq()).abs().sqrt() * normal;
+        perp + para
+    }
+
     pub fn random() -> Vec3 {
         let mut guard = crate::UNIFORM.lock().unwrap();
         let uniform = guard.get_mut().unwrap();

@@ -4,7 +4,7 @@ use std::rc::Rc;
 use raytracing::camera::Camera;
 use raytracing::color::Color;
 use raytracing::hittable::Sphere;
-use raytracing::material::{Lambertian, Metal};
+use raytracing::material::{Dielectric, Lambertian, Metal};
 use raytracing::vec3::*;
 
 fn main() -> std::io::Result<()> {
@@ -14,12 +14,14 @@ fn main() -> std::io::Result<()> {
 
     let mat_ground = Rc::new(Lambertian::new(Color::new(0.8, 0.8, 0.)));
     let mat_centre = Rc::new(Lambertian::new(Color::new(0.1, 0.2, 0.5)));
-    let mat_left = Rc::new(Metal::new(Color::new(0.8, 0.8, 0.8), 0.3));
+    let mat_left = Rc::new(Dielectric::new(1.5));
+    let mat_bubble = Rc::new(Dielectric::new(1. / 1.5));
     let mat_right = Rc::new(Metal::new(Color::new(0.8, 0.6, 0.2), 0.8));
     let world = vec![
         Sphere::new(Point3::new(0., -100.5, -1.), -100., mat_ground),
         Sphere::new(Point3::new(0., 0., -1.2), 0.5, mat_centre),
         Sphere::new(Point3::new(-1., 0., -1.), 0.5, mat_left),
+        Sphere::new(Point3::new(-1., 0., -1.), 0.4, mat_bubble),
         Sphere::new(Point3::new(1., 0., -1.), 0.5, mat_right),
     ];
 

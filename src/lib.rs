@@ -1,13 +1,19 @@
 use std::cell::OnceCell;
 use std::sync::Mutex;
 
-use rand::distr::Uniform;
+use rand::distr::{Distribution, Uniform};
 
 static UNIFORM: Mutex<OnceCell<Uniform<f32>>> = Mutex::new(OnceCell::new());
 
 pub fn init_uniform() {
     let uniform = UNIFORM.lock().unwrap();
     uniform.set(Uniform::new(0., 1.).unwrap()).unwrap();
+}
+
+pub(crate) fn random_f32() -> f32 {
+    let guard = UNIFORM.lock().unwrap();
+    let uniform = guard.get().unwrap();
+    uniform.sample(&mut rand::rng())
 }
 
 pub mod camera;
