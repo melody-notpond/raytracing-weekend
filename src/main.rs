@@ -10,7 +10,8 @@ use raytracing::vec3::*;
 fn main() -> std::io::Result<()> {
     raytracing::init_uniform();
     let mut file = File::create("image.ppm")?;
-    let mut camera = Camera::new(800, 600, Point3::new(0., 0., 0.));
+    let mut camera = Camera::new(800, 600, Point3::new(-2., 2., 1.),
+        Point3::new(0., 0., -1.), Vec3::new(0., 1., 0.));
 
     let mat_ground = Rc::new(Lambertian::new(Color::new(0.8, 0.8, 0.)));
     let mat_centre = Rc::new(Lambertian::new(Color::new(0.1, 0.2, 0.5)));

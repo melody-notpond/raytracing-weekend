@@ -8,29 +8,44 @@ use crate::vec3::*;
 pub struct Camera {
     pub image_width: i32,
     pub image_height: i32,
-    pub center: Vec3,
     pub max_depth: i32,
     pub samples_per_pixel: i32,
+    pub vfov: f32,
+    pub look_from: Vec3,
+    pub look_at: Vec3,
+    pub up: Vec3,
+    center: Vec3,
     pixel_sample_scale: f32,
     aspect_ratio: f32,
     pixel00_loc: Point3,
     pixel_delta_u: Vec3,
     pixel_delta_v: Vec3,
+    basis_u: Vec3,
+    basis_v: Vec3,
+    basis_w: Vec3,
 }
 
 impl Camera {
-    pub fn new(image_width: i32, image_height: i32, center: Point3) -> Self {
+    pub fn new(image_width: i32, image_height: i32, look_from: Vec3,
+        look_at: Vec3, up: Vec3) -> Self {
         Camera {
             image_width,
             image_height,
-            center,
             max_depth: 10,
             samples_per_pixel: 10,
-            pixel_sample_scale: 0.,
+            vfov: 90.,
             aspect_ratio: 0.,
+            look_from,
+            look_at,
+            up,
+            center: Vec3::new(0., 0., 0.),
+            pixel_sample_scale: 0.,
             pixel00_loc: Point3::new(0., 0., 0.),
             pixel_delta_u: Vec3::new(0., 0., 0.),
             pixel_delta_v: Vec3::new(0., 0., 0.),
+            basis_u: Vec3::new(0., 0., 0.),
+            basis_v: Vec3::new(0., 0., 0.),
+            basis_w: Vec3::new(0., 0., 0.),
         }
     }
 
@@ -59,20 +74,27 @@ impl Camera {
 
     fn init(&mut self) {
         self.aspect_ratio = self.image_width as f32 / self.image_height as f32;
-        let focal_length = 1.;
-        self.center = Vec3::new(0., 0., 0.);
         self.pixel_sample_scale = 1. / self.samples_per_pixel as f32;
 
+        self.center = self.look_from;
+        
         // viewport
-        let viewport_height = 2.;
+        let focal_length = (self.look_from - self.look_at).length();
+        let h = (self.vfov.to_radians() / 2.).tan();
+        let viewport_height = 2. * h * focal_length;
         let viewport_width = viewport_height * self.aspect_ratio;
-        let viewport_u = Vec3::new(viewport_width as f32, 0., 0.);
-        let viewport_v = Vec3::new(0., -viewport_height as f32, 0.);
+
+        // orthonormal basis
+        self.basis_w = (self.look_from - self.look_at).normalize();
+        self.basis_u = self.up.cross(self.basis_w).normalize();
+        self.basis_v = self.basis_w.cross(self.basis_u);
 
         // pixel location in world
+        let viewport_u = viewport_width * self.basis_u;
+        let viewport_v = viewport_height * -self.basis_v;
         self.pixel_delta_u = viewport_u / self.image_width;
         self.pixel_delta_v = viewport_v / self.image_height;
-        let viewport_upper_left = self.center - Vec3::new(0., 0., focal_length)
+        let viewport_upper_left = self.center - focal_length * self.basis_w
             - viewport_u / 2 - viewport_v / 2;
         self.pixel00_loc = viewport_upper_left + (self.pixel_delta_u +
             self.pixel_delta_v) / 2;
